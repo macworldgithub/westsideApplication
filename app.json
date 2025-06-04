@@ -1,7 +1,19 @@
 {
   "expo": {
-    "name": "westsideApplication",
-    "slug": "westsideApplication",
-    "version": "1.0.0"
+    "name": "westsideapp",
+    "slug": "westsideapp",
+    "version": "1.0.0",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "plugins": ["expo-router"],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "985a1096-f457-49a8-b6f0-59a1c7374ba3"
+      }
+    }
   }
 }
