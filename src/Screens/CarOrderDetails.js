@@ -13,7 +13,7 @@ const CarOrderDetails = () => {
 
         {/* Header with Back Arrow */}
         <View className="flex-row items-center mb-4">
-          <TouchableOpacity onPress={() => navigation.navigate('NewWorkOrder')}>
+          <TouchableOpacity onPress={() => navigation.navigate('WorkOrder')}>
             <Image source={require('../../assets/back.png')} className="w-6 h-6" /> 
           </TouchableOpacity>
           <Text className="text-white text-xl font-bold ml-4">Car Order Details</Text>

@@ -15,6 +15,7 @@ import RegisteredCars from "./src/Screens/RegisteredCars";
 import EditCarDetail from "./src/Screens/CarDetailEdit";
 import WorkOrder from "./src/Screens/WorkOrder";
 import NewWorkOrder from "./src/Screens/NewWorkOrder";
+import NewService from "./src/Screens/NewService";
 import ViewServices from "./src/Screens/ViewServices";
 import CarOrderDetails from "./src/Screens/CarOrderDetails";
 import ReportScreen from "./src/Screens/ReportScreen";
@@ -72,6 +73,7 @@ export default function App() {
               <Stack.Screen name="ViewServices" component={ViewServices} />
               <Stack.Screen name="NewWorkOrder" component={NewWorkOrder} />
               <Stack.Screen name="ReportScreen" component={ReportScreen} />
+              <Stack.Screen name="NewService" component={NewService} />
               {/* <Stack.Screen name="CarOrderDetails" component={CarOrderDetails}/> */}
               <Stack.Screen
                 name="CarOrderDetails"

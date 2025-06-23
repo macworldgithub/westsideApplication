@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native'; // ✅ Import navigation hook
-
 const orders = [
     { id: '0124568', owner: 'Paul', mechanic: 'Walker', status: 'Inprogress' },
     { id: '0124569', owner: 'Sara', mechanic: 'Davis', status: 'Completed' },
@@ -10,7 +9,6 @@ const orders = [
     { id: '0124571', owner: 'Mike', mechanic: 'Taylor', status: 'Inprogress' }
 
 ];
-
 const getStatusColor = (status) => {
     switch (status) {
         case 'Inprogress': return 'bg-green-300';
@@ -22,7 +20,6 @@ const getStatusColor = (status) => {
 
 export default function WorkOrdersScreen() {
     const navigation = useNavigation();
-
     return (
         <View className="flex-1 bg-black px-4 pt-16">
             {/* Header */}
