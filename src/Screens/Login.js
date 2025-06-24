@@ -8,48 +8,81 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../utils/config';
 
 export default function Login({ onLogin }) {
-  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation();
 
-  const handleSignIn = () => {
-    console.log('Email or Phone:', emailOrPhone);
-    console.log('Password:', password);
-    console.log('Remember Me:', rememberMe);
+  const handleSignIn = async () => {
+    // Validate inputs
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Missing Fields', 'Please enter both Email and Password.');
+      return;
+    }
 
-    // ✅ Only navigate if credentials are provided
-    if (emailOrPhone.trim() !== '' && password.trim() !== '') {
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      // Make login request to backend using API_BASE_URL
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+        email,
+        password,
+      });
+
+      // Extract token from response
+      const { token } = response.data.credentials;
+
+      // Store token in AsyncStorage
+      await AsyncStorage.setItem('jwt_token', token);
+
+      // Call onLogin callback with token
       if (onLogin) {
-        onLogin('dummy-token');
+        onLogin(token);
       }
 
-     // navigation.navigate('RegisteredCars');
-    } else {
-      Alert.alert('Missing Fields', 'Please enter both Email/Phone and Password.');
+      // Navigate to RegisteredCars screen
+      navigation.navigate('RegisteredCars');
+
+      // Show success message
+      Alert.alert('Success', 'Logged in successfully!');
+    } catch (error) {
+      // Handle errors
+      const errorMessage =
+        error.response?.data?.message || 'Invalid credentials. Please try again.';
+      Alert.alert('Login Failed', errorMessage);
     }
   };
 
   const handleForgotPassword = () => {
-    navigation.navigate('ForgotPassword'); 
+    navigation.navigate('ForgotPassword');
   };
 
   return (
     <View className="flex-1 bg-black justify-center px-6 -mt-32">
       <Text className="text-white text-4xl font-bold text-center mb-20">Sign In</Text>
 
-      {/* Email or phone input */}
+      {/* Email input */}
       <View className="flex-row items-center bg-black border border-gray-600 rounded-md px-3 py-2 mb-4">
         <FontAwesome name="envelope" size={20} color="white" style={{ marginRight: 8 }} />
         <TextInput
           className="flex-1 text-white"
-          placeholder="Enter email or phone number"
+          placeholder="Enter email"
           placeholderTextColor="#888"
-          value={emailOrPhone}
-          onChangeText={setEmailOrPhone}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
       </View>
 

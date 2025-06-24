@@ -16,6 +16,7 @@ import EditCarDetail from "./src/Screens/CarDetailEdit";
 import WorkOrder from "./src/Screens/WorkOrder";
 import NewWorkOrder from "./src/Screens/NewWorkOrder";
 import NewService from "./src/Screens/NewService";
+import EditServiceScreen from "./src/Screens/EditServiceScreen";
 import ViewServices from "./src/Screens/ViewServices";
 import CarOrderDetails from "./src/Screens/CarOrderDetails";
 import ReportScreen from "./src/Screens/ReportScreen";
@@ -24,12 +25,13 @@ import Profile from "./src/Screens/Profile";
 import GeneralSettingsScreen from "./src/Screens/GeneralSetting";
 import LanguageSetting from "./src/Screens/LanguageSetting";
 import AccountSecurityScreen from "./src/Screens/AccountSecurity";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const Stack = createStackNavigator();
 const RootStack = createStackNavigator();
 
 export default function App() {
-  const [userToken, setUserToken] = useState(null);
+  const [userToken, setUserToken] = useState(AsyncStorage.getItem("jwt_token"));
   const [isSplashDone, setIsSplashDone] = useState(false);
 
   const splashOpacity = useRef(new Animated.Value(1)).current;
@@ -74,6 +76,7 @@ export default function App() {
               <Stack.Screen name="NewWorkOrder" component={NewWorkOrder} />
               <Stack.Screen name="ReportScreen" component={ReportScreen} />
               <Stack.Screen name="NewService" component={NewService} />
+              <Stack.Screen name="EditServiceScreen" component={EditServiceScreen} />
               {/* <Stack.Screen name="CarOrderDetails" component={CarOrderDetails}/> */}
               <Stack.Screen
                 name="CarOrderDetails"

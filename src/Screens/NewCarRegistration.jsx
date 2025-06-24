@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   View,
@@ -14,6 +13,9 @@ import { useNavigation } from "@react-navigation/native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { API_BASE_URL } from "../utils/config";
 
 const NewCarRegistration = () => {
   const navigation = useNavigation();
@@ -24,9 +26,12 @@ const NewCarRegistration = () => {
     carName: "",
     carModel: "",
     carYear: "",
+    chassisNumber: "",
     note: "",
     imageUri: null,
   });
+
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -49,7 +54,6 @@ const NewCarRegistration = () => {
       );
       return false;
     }
-
     return true;
   };
 
@@ -81,8 +85,79 @@ const NewCarRegistration = () => {
     }
   };
 
-  const handleSubmit = () => {
-    console.log("Form Data:", form);
+  const handleSubmit = async () => {
+    const { carPlate, carName, carModel, carYear, chassisNumber, imageUri } =
+      form;
+
+    // Validate required fields
+    if (
+      !carPlate.trim() ||
+      !carName.trim() ||
+      !carModel.trim() ||
+      !carYear.trim() ||
+      !chassisNumber.trim()
+    ) {
+      Alert.alert("Missing Fields", "Please fill in all required fields.");
+      return;
+    }
+
+    // Validate carYear as a number
+    const yearNum = parseInt(carYear);
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > new Date().getFullYear()) {
+      Alert.alert("Invalid Year", "Please enter a valid car year.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const token = await AsyncStorage.getItem("jwt_token");
+      if (!token) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
+      const formData = new FormData();
+      formData.append("plate", carPlate);
+      formData.append("variant", carName);
+      formData.append("model", carModel);
+      formData.append("year", yearNum.toString());
+      formData.append("chassisNumber", chassisNumber);
+
+      if (imageUri) {
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        const fileName = imageUri.split("/").pop() || "car_image.jpg";
+        formData.append("image", {
+          uri: imageUri,
+          type: blob.type || "image/jpeg",
+          name: fileName,
+        });
+      }
+
+      const response = await axios.post(
+        `${API_BASE_URL}/vehicle/registration`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      Alert.alert("Success", "Car registered successfully!", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      console.error("Error registering car:", error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to register car. Please try again.";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -107,19 +182,26 @@ const NewCarRegistration = () => {
       {/* Input Fields */}
       {[
         { label: "Driver Name", key: "driverName" },
-        { label: "Car Plate", key: "carPlate" },
-        { label: "Car Name", key: "carName" },
-        { label: "Car Model", key: "carModel" },
-        { label: "Car Year", key: "carYear" },
+        { label: "Car Plate", key: "carPlate", required: true },
+        { label: "Car Name (Variant)", key: "carName", required: true },
+        { label: "Car Model", key: "carModel", required: true },
+        { label: "Car Year", key: "carYear", required: true },
+        { label: "Chassis Number", key: "chassisNumber", required: true },
       ].map((field) => (
         <View key={field.key} className="mb-4">
-          <Text className="text-white mb-1">{field.label}</Text>
+          <Text className="text-white mb-1">
+            {field.label}
+            {field.required && <Text className="text-red-500"> *</Text>}
+          </Text>
           <TextInput
             className="bg-white text-black rounded-xl px-4 py-2"
             placeholder={field.label}
             placeholderTextColor="#999"
             value={form[field.key]}
             onChangeText={(text) => handleChange(field.key, text)}
+            keyboardType={
+              field.key === "carYear" ? "numeric" : "default"
+            }
           />
         </View>
       ))}
@@ -145,21 +227,23 @@ const NewCarRegistration = () => {
       <View className="mb-6">
         <Text className="text-white mb-2">Image Upload</Text>
         <View className="flex-row space-x-4">
-          {/* <TouchableOpacity
+          <TouchableOpacity
             onPress={handleImagePick}
             className="flex-1 bg-gray-200 rounded-xl py-6 items-center justify-center"
+            disabled={loading}
           >
             <MaterialCommunityIcons name="upload" size={28} color="black" />
             <Text className="text-black font-semibold mt-1 text-sm">
               Upload
             </Text>
-          </TouchableOpacity> */}
+          </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handleCaptureImage}
-            className="flex-1 bg-gray-200 rounded-xl py-2  items-center justify-center "
+            className="flex-1 bg-gray-200 rounded-xl py-6 items-center justify-center"
+            disabled={loading}
           >
-            <MaterialCommunityIcons name="camera" size={29} color="black" />
+            <MaterialCommunityIcons name="camera" size={28} color="black" />
             <Text className="text-black font-semibold mt-1 text-sm">
               Capture
             </Text>
@@ -167,29 +251,34 @@ const NewCarRegistration = () => {
         </View>
 
         {form.imageUri && (
-  <View className="relative mt-4">
-    <Image
-      source={{ uri: form.imageUri }}
-      className="w-full h-72 rounded-xl"
-      resizeMode="cover"
-    />
-    <TouchableOpacity
-      onPress={() => handleChange("imageUri", null)}
-      className="absolute top-2 right-2 bg-red-600 p-2 rounded-full"
-    >
-      <MaterialCommunityIcons name="delete" size={20} color="white" />
-    </TouchableOpacity>
-  </View>
-)}
-
+          <View className="relative mt-4">
+            <Image
+              source={{ uri: form.imageUri }}
+              className="w-full h-72 rounded-xl"
+              resizeMode="cover"
+            />
+            <TouchableOpacity
+              onPress={() => handleChange("imageUri", null)}
+              className="absolute top-2 right-2 bg-red-600 p-2 rounded-full"
+              disabled={loading}
+            >
+              <MaterialCommunityIcons name="delete" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Submit */}
       <TouchableOpacity
-        className="bg-black py-3 rounded-xl items-center border border-white"
+        className={`bg-black py-3 rounded-xl items-center border border-white ${
+          loading ? "opacity-50" : ""
+        }`}
         onPress={handleSubmit}
+        disabled={loading}
       >
-        <Text className="text-white font-bold">Save</Text>
+        <Text className="text-white font-bold">
+          {loading ? "Saving..." : "Save"}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );

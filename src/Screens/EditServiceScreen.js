@@ -17,11 +17,13 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { API_BASE_URL } from '../utils/config';
 import EditPicModal from './EditPicModal';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator } from 'react-native-paper';
 
-const NewServiceScreen = () => {
+const EditServiceScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { workOrderId } = route.params || {};
+  const { repairId, workOrderId } = route.params || {};
 
   const [form, setForm] = useState({
     mechanicName: '',
@@ -31,14 +33,17 @@ const NewServiceScreen = () => {
     notes: '',
     beforeImageUri: null,
     afterImageUri: null,
+    submitted: false,
   });
   const [modalVisible, setModalVisible] = useState(false);
   const [imageType, setImageType] = useState('');
+  const [userId, setUserId] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch user role
+  // Fetch user details and repair data
   useEffect(() => {
-    const fetchUserDetails = async () => {
+    const fetchData = async () => {
       try {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
@@ -48,19 +53,47 @@ const NewServiceScreen = () => {
           return;
         }
         const decoded = jwtDecode(token);
-        if (!decoded.role) {
-          throw new Error('Invalid token payload: missing role');
+        if (!decoded._id || !decoded.role) {
+          throw new Error('Invalid token payload: missing _id or role');
         }
+        setUserId(decoded._id);
         setUserRole(decoded.role);
+
+        // Fetch repair details
+        const response = await axios.get(`${API_BASE_URL}/repairs/get-single-repair-by-id/${repairId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const repair = response.data;
+        if (!repair) throw new Error('Repair not found');
+
+        setForm({
+          mechanicName: repair.mechanicName || '',
+          partName: repair.partName || '',
+          price: repair.price ? repair.price.toString() : '',
+          finishDate: repair.finishDate
+            ? (() => {
+                const date = new Date(repair.finishDate);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}-${month}-${year}`;
+              })()
+            : '',
+          notes: repair.notes || '',
+          beforeImageUri: repair.beforeImageUrl || null,
+          afterImageUri: repair.afterImageUrl || null,
+          submitted: repair.submitted || false,
+        });
       } catch (error) {
-        console.error('Error decoding token:', error);
-        Alert.alert('Error', 'Failed to authenticate. Please log in again.', [
-          { text: 'OK', onPress: () => navigation.navigate('Login') },
-        ]);
+        console.error('Error fetching repair:', error.response?.data || error);
+        Alert.alert('Error', error.response?.data?.message || 'Failed to fetch repair.');
+      } finally {
+        setLoading(false);
       }
     };
-    fetchUserDetails();
-  }, [navigation]);
+    fetchData();
+  }, [navigation, repairId]);
 
   const handleChange = (key, value) => {
     setForm({ ...form, [key]: value });
@@ -74,72 +107,126 @@ const NewServiceScreen = () => {
   };
 
   const openImageModal = (type) => {
+    if (form.submitted && userRole === 'technician') {
+      Alert.alert('Error', 'Cannot edit images for submitted repairs.');
+      return;
+    }
     setImageType(type);
     setModalVisible(true);
   };
 
+  const handleDeleteImage = async (type) => {
+    if (form.submitted && userRole === 'technician') {
+      Alert.alert('Error', 'Cannot delete images for submitted repairs.');
+      return;
+    }
+    try {
+      const token = await AsyncStorage.getItem('jwt_token');
+      await axios.delete(`${API_BASE_URL}/repairs/delete-image/${repairId}/${type}/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setForm((prev) => ({ ...prev, [`${type}ImageUri`]: null }));
+      Alert.alert('Success', `${type.charAt(0).toUpperCase() + type.slice(1)} image deleted.`);
+    } catch (error) {
+      console.error('Error deleting image:', error.response?.data || error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to delete image.');
+    }
+  };
+
+  const handleToggleSubmit = () => {
+    if (!form.submitted) {
+      Alert.alert(
+        'Confirm Submission',
+        'Once submitted and updated, this repair cannot be edited by technicians. Proceed?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Yes',
+            onPress: () => setForm((prev) => ({ ...prev, submitted: true })),
+          },
+        ],
+      );
+    } else {
+      setForm((prev) => ({ ...prev, submitted: false }));
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!workOrderId) {
-      Alert.alert('Error', 'Work Order ID is missing.');
+    if (!workOrderId || !repairId || !userId) {
+      Alert.alert('Error', 'Missing required parameters.');
       return;
     }
 
-    // Validate required fields
     if (!form.mechanicName || !form.partName || !form.price || !form.finishDate) {
       Alert.alert('Error', 'Please fill all required fields.');
       return;
     }
 
-    // Validate date format (DD-MM-YYYY)
     const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
     if (!dateRegex.test(form.finishDate)) {
       Alert.alert('Error', 'Finish date must be in DD-MM-YYYY format.');
       return;
     }
 
-    // Convert DD-MM-YYYY to ISO format (YYYY-MM-DD)
     const [day, month, year] = form.finishDate.split('-');
     const isoDate = `${year}-${month}-${day}T00:00:00Z`;
 
     try {
       const token = await AsyncStorage.getItem('jwt_token');
-      const formData = new FormData();
-      formData.append('workOrder', workOrderId);
-      formData.append('mechanicName', form.mechanicName);
-      formData.append('partName', form.partName);
-      formData.append('price', form.price);
-      formData.append('finishDate', isoDate);
-      if (form.notes) formData.append('notes', form.notes);
+      const updateData = {
+        mechanicName: form.mechanicName,
+        partName: form.partName,
+        price: parseFloat(form.price),
+        finishDate: isoDate,
+        notes: form.notes || undefined,
+        submitted: form.submitted,
+      };
 
-      if (form.beforeImageUri) {
-        formData.append('images', {
-          uri: form.beforeImageUri,
-          type: 'image/jpeg',
-          name: `before_${Date.now()}.jpg`,
-        });
-      }
-      if (form.afterImageUri) {
-        formData.append('images', {
-          uri: form.afterImageUri,
-          type: 'image/jpeg',
-          name: `after_${Date.now()}.jpg`,
-        });
+      // Handle image uploads and capture signed URLs
+      for (const type of ['before', 'after']) {
+        if (form[`${type}ImageUri`] && form[`${type}ImageUri`].startsWith('file://')) {
+          const formData = new FormData();
+          formData.append('file', {
+            uri: form[`${type}ImageUri`],
+            type: 'image/jpeg',
+            name: `${type}_${Date.now()}.jpg`,
+          });
+          const uploadResponse = await axios.put(
+            `${API_BASE_URL}/repairs/upload-image/${repairId}/${type}/${userId}`,
+            formData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data',
+              },
+            },
+          );
+          // Update form state with signed URL and add to updateData
+          const signedUrl = uploadResponse.data; // Assuming endpoint returns the signed URL
+          setForm((prev) => ({ ...prev, [`${type}ImageUri`]: signedUrl }));
+          updateData[`${type}ImageUri`] = signedUrl;
+        }
       }
 
-      console.log('Submitting repair:', formData);
-      const response = await axios.post(`${API_BASE_URL}/repairs`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
+      // Update repair
+      const response = await axios.put(
+        `${API_BASE_URL}/repairs/${repairId}?userId=${userId}`,
+        updateData,
+        {
+          headers: { Authorization: `Bearer ${token}` },
         },
-      });
-      console.log('Repair created:', response.data);
-      Alert.alert('Success', 'Repair created successfully.', [
+      );
+
+      console.log('Repair updated:', response.data);
+      Alert.alert('Success', 'Repair updated successfully.', [
         { text: 'OK', onPress: () => navigation.navigate('ViewServices', { workOrderId }) },
       ]);
     } catch (error) {
-      console.error('Error creating repair:', error.response?.data || error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create repair.');
+      console.error('Error updating repair:', error.response?.data || error);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update repair.');
     }
   };
 
@@ -150,6 +237,14 @@ const NewServiceScreen = () => {
     { key: 'finishDate', label: 'Work Finish Date', placeholder: 'DD-MM-YYYY' },
     { key: 'notes', label: 'Notes', placeholder: 'Enter notes' },
   ];
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-black justify-center items-center">
+        <ActivityIndicator size="large" color="#ffffff" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -170,7 +265,7 @@ const NewServiceScreen = () => {
           <TouchableOpacity onPress={() => navigation.navigate('ViewServices', { workOrderId })}>
             <Image source={require('../../assets/back.png')} className="w-6 h-6 mr-4" />
           </TouchableOpacity>
-          <Text className="text-white text-xl font-semibold">New Service</Text>
+          <Text className="text-white text-xl font-semibold">Edit Service</Text>
         </View>
 
         {/* Input Fields */}
@@ -184,6 +279,7 @@ const NewServiceScreen = () => {
               value={form[field.key]}
               onChangeText={(text) => handleChange(field.key, text)}
               keyboardType={field.key === 'price' ? 'numeric' : 'default'}
+              editable={!(form.submitted && userRole === 'technician')}
             />
           </View>
         ))}
@@ -201,12 +297,14 @@ const NewServiceScreen = () => {
               <TouchableOpacity
                 onPress={() => openImageModal('before')}
                 className="absolute top-2 right-2 bg-black/70 p-2 rounded-full"
+                disabled={form.submitted && userRole === 'technician'}
               >
                 <Icon name="edit-2" size={18} color="white" />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setForm((prev) => ({ ...prev, beforeImageUri: null }))}
+                onPress={() => handleDeleteImage('before')}
                 className="absolute top-2 left-2 bg-black/70 p-2 rounded-full"
+                disabled={form.submitted && userRole === 'technician'}
               >
                 <Icon name="trash-2" size={18} color="white" />
               </TouchableOpacity>
@@ -215,6 +313,7 @@ const NewServiceScreen = () => {
             <TouchableOpacity
               onPress={() => openImageModal('before')}
               className="border border-dashed border-gray-600 rounded-lg h-48 items-center justify-center"
+              disabled={form.submitted && userRole === 'technician'}
             >
               <Icon name="plus" size={28} color="gray" />
               <Text className="text-gray-400 mt-2">Add Before Image</Text>
@@ -235,12 +334,14 @@ const NewServiceScreen = () => {
               <TouchableOpacity
                 onPress={() => openImageModal('after')}
                 className="absolute top-2 right-2 bg-black/70 p-2 rounded-full"
+                disabled={form.submitted && userRole === 'technician'}
               >
                 <Icon name="edit-2" size={18} color="white" />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setForm((prev) => ({ ...prev, afterImageUri: null }))}
+                onPress={() => handleDeleteImage('after')}
                 className="absolute top-2 left-2 bg-black/70 p-2 rounded-full"
+                disabled={form.submitted && userRole === 'technician'}
               >
                 <Icon name="trash-2" size={18} color="white" />
               </TouchableOpacity>
@@ -249,6 +350,7 @@ const NewServiceScreen = () => {
             <TouchableOpacity
               onPress={() => openImageModal('after')}
               className="border border-dashed border-gray-600 rounded-lg h-48 items-center justify-center"
+              disabled={form.submitted && userRole === 'technician'}
             >
               <Icon name="plus" size={28} color="gray" />
               <Text className="text-gray-400 mt-2">Add After Image</Text>
@@ -256,11 +358,28 @@ const NewServiceScreen = () => {
           )}
         </View>
 
+        {/* Submit Button */}
+        {(userRole === 'shopManager' || userRole === 'systemAdministrator') && (
+          <View className="mb-4">
+            <Text className="text-white mb-1">Submission Status</Text>
+            <TouchableOpacity
+              className="bg-red-600 py-3 rounded-xl items-center"
+              onPress={handleToggleSubmit}
+            >
+              <Text className="text-white font-bold">
+                {form.submitted ? 'Revert Submission' : 'Mark as Submitted'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Update Button */}
         <TouchableOpacity
           className="bg-black py-3 rounded-xl items-center border border-gray-600"
           onPress={handleSubmit}
+          disabled={form.submitted && userRole === 'technician'}
         >
-          <Text className="text-white font-bold">Save</Text>
+          <Text className="text-white font-bold">Update</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -273,4 +392,4 @@ const NewServiceScreen = () => {
   );
 };
 
-export default NewServiceScreen;
+export default EditServiceScreen;

@@ -1,55 +1,123 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import {jwtDecode} from "jwt-decode";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { API_BASE_URL } from "../utils/config";
 import Icon from "react-native-vector-icons/Feather";
-import EditPicModal from "./EditPicModal";
 
 const NewWorkOrderScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+  const { carId } = route.params || {};
 
   const [form, setForm] = useState({
+    car: carId || "",
     ownerName: "",
-    headMechanicName: "",
+    headMechanic: "",
     orderCreatorName: "",
-    email: "",
-    phone: "",
+    ownerEmail: "",
+    phoneNumber: "",
     startDate: "",
     finishDate: "",
     address: "",
-    status: "In Progress",
-    imageUri: Image.resolveAssetSource(require("../../assets/Car.png")).uri,
+    createdBy: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState(null);
 
-  const [modalVisible, setModalVisible] = useState(false);
+  // Fetch user ID from JWT token
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        const token = await AsyncStorage.getItem("jwt_token");
+        if (!token) {
+          console.warn("No token found in AsyncStorage");
+          alert("Please log in again.");
+          navigation.navigate("Login");
+          return;
+        }
+        const decoded = jwtDecode(token);
+        if (!decoded._id) {
+          throw new Error("Invalid token payload: missing _id");
+        }
+        setUserId(decoded._id);
+        setForm((prev) => ({ ...prev, createdBy: decoded._id }));
+      } catch (error) {
+        console.error("Error decoding token:", error);
+        alert("Failed to authenticate. Please log in again.");
+        navigation.navigate("Login");
+      }
+    };
+    fetchUserDetails();
+  }, [navigation]);
 
   const handleChange = (key, value) => {
     setForm({ ...form, [key]: value });
   };
 
-  const handleSubmit = () => {
-    console.log("Form Data:", form);
-    // Add API call or navigation logic here
-  };
+  const handleSubmit = async () => {
+    if (!carId) {
+      alert("No car selected. Please select a car.");
+      return;
+    }
+    if (!userId) {
+      alert("User not authenticated. Please log in again.");
+      return;
+    }
 
-  const handleImageSelected = (image) => {
-    if (image && image.uri) {
-      setForm((prev) => ({ ...prev, imageUri: image.uri }));
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("jwt_token");
+      const response = await axios.post(
+        `${API_BASE_URL}/workorder/create-work-order`,
+        {
+          car: form.car,
+          ownerName: form.ownerName,
+          headMechanic: form.headMechanic,
+          orderCreatorName: form.orderCreatorName,
+          ownerEmail: form.ownerEmail,
+          phoneNumber: form.phoneNumber,
+          startDate: form.startDate,
+          finishDate: form.finishDate,
+          address: form.address,
+          createdBy: form.createdBy,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      console.log("Work order created:", response.data);
+      alert("Work order created successfully!");
+      navigation.navigate("RegisteredCars"); // Navigate back to refresh the list
+    } catch (error) {
+      console.error("Error creating work order:", error.response?.data || error);
+      alert(
+        `Failed to create work order: ${
+          error.response?.data?.message || error.message
+        }`
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   const fields = [
     { key: "ownerName", label: "Owner Name", placeholder: "Enter owner name" },
     {
-      key: "headMechanicName",
+      key: "headMechanic",
       label: "Head Mechanic Name",
       placeholder: "Enter head mechanic name",
     },
@@ -58,16 +126,15 @@ const NewWorkOrderScreen = () => {
       label: "Order Creator Name",
       placeholder: "Enter order creator name",
     },
-    { key: "email", label: "Email", placeholder: "Enter email" },
-    { key: "phone", label: "Phone No.", placeholder: "Enter phone number" },
-    { key: "startDate", label: "Start Date", placeholder: "DD-MM-YYYY" },
+    { key: "ownerEmail", label: "Email", placeholder: "Enter email" },
+    { key: "phoneNumber", label: "Phone No.", placeholder: "Enter phone number" },
+    { key: "startDate", label: "Start Date", placeholder: "YYYY-MM-DD" },
     {
       key: "finishDate",
       label: "Work Finish Date",
-      placeholder: "DD-MM-YYYY",
+      placeholder: "YYYY-MM-DD",
     },
     { key: "address", label: "Address", placeholder: "Enter address" },
-    { key: "status", label: "Status", placeholder: "Enter status" },
   ];
 
   return (
@@ -86,11 +153,8 @@ const NewWorkOrderScreen = () => {
       >
         {/* Header */}
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={() => navigation.navigate("WorkOrder")}>
-            <Image
-              source={require("../../assets/back.png")}
-              className="w-6 h-6 mr-4"
-            />
+          <TouchableOpacity onPress={() => navigation.navigate("RegisteredCars")}>
+            <Icon name="arrow-left" size={24} color="white" className="mr-4" />
           </TouchableOpacity>
           <Text className="text-white text-xl font-semibold">
             New Work Order
@@ -107,65 +171,37 @@ const NewWorkOrderScreen = () => {
               placeholderTextColor="#999"
               value={form[field.key]}
               onChangeText={(text) => handleChange(field.key, text)}
+              keyboardType={
+                field.key === "ownerEmail"
+                  ? "email-address"
+                  : field.key === "phoneNumber"
+                  ? "phone-pad"
+                  : "default"
+              }
+              autoCapitalize={
+                field.key === "ownerEmail" || field.key === "phoneNumber"
+                  ? "none"
+                  : "words"
+              }
             />
           </View>
         ))}
 
-        {/* Image Upload Section */}
-        
-        {/* <View className="mt-2 mb-6">
-          <Text className="text-white mb-2">Image Upload</Text>
-
-          {form.imageUri ? (
-            <View className="relative">
-              <Image
-                source={{ uri: form.imageUri }}
-                className="w-full h-48 rounded-lg"
-                resizeMode="cover"
-              />
-
-              <TouchableOpacity
-                onPress={() => setModalVisible(true)}
-                className="absolute top-2 right-2 bg-black/70 p-2 rounded-full"
-              >
-                <Icon name="edit-2" size={18} color="white" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() =>
-                  setForm((prev) => ({ ...prev, imageUri: null }))
-                }
-                className="absolute top-2 left-2 bg-black/70 p-2 rounded-full"
-              >
-                <Icon name="trash-2" size={18} color="white" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={() => setModalVisible(true)}
-              className="border border-dashed border-gray-600 rounded-lg h-48 items-center justify-center"
-            >
-              <Icon name="plus" size={28} color="gray" />
-              <Text className="text-gray-400 mt-2">Add Image</Text>
-            </TouchableOpacity>
-          )}
-        </View>  */}
-
         {/* Save Button */}
         <TouchableOpacity
-          className="bg-black py-3 rounded-xl items-center border border-gray-600"
+          className={`bg-black py-3 rounded-xl items-center border border-gray-600 ${
+            loading ? "opacity-50" : ""
+          }`}
           onPress={handleSubmit}
+          disabled={loading}
         >
-          <Text className="text-white font-bold">Save</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Text className="text-white font-bold">Save</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
-
-      {/* Image Picker Modal */}
-      {/* <EditPicModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onImageSelected={handleImageSelected}
-      /> */}
     </KeyboardAvoidingView>
   );
 };
