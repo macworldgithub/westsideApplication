@@ -1,21 +1,74 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   View,
   Text,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { FontAwesome, Feather, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { jwtDecode } from 'jwt-decode';
 
-export default function Profile() {
-  const user = {
-    name: "Paul Walker",
-    email: "Paulwalker@gmail.com",
+export default function Profile({ onLogout }) {
+  const [user, setUser] = useState({ name: '', email: '' });
+  const [loading, setLoading] = useState(true);
+  const navigation = useNavigation();
+
+  // Fetch user details from AsyncStorage and JWT
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwt_token');
+        const name = await AsyncStorage.getItem('user_name');
+        if (!token) {
+          setLoading(false);
+          return;
+        }
+
+        // Decode JWT to get email
+        const decoded = jwtDecode(token);
+        console.log(decoded); // For debugging
+        setUser({
+          name: name || 'Unknown User',
+          email: decoded.email || 'No email provided',
+        });
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        Alert.alert('Error', 'Failed to load user profile. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      // Clear JWT token and name from AsyncStorage
+      await AsyncStorage.multiRemove(['jwt_token', 'user_name']);
+      
+      // Notify parent (App.js) to update userToken
+      if (onLogout) {
+        onLogout(null);
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
   };
 
-  const navigation = useNavigation();
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-[#191919] justify-center items-center">
+        <ActivityIndicator size="large" color="#ffffff" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#191919]">
@@ -24,7 +77,7 @@ export default function Profile() {
         <Text className="text-white text-xl font-semibold">Profile</Text>
         <TouchableOpacity
           className="bg-[#2f2f2f] px-6 py-3 rounded-lg"
-          onPress={() => navigation.navigate('Login')} // ✅ Navigate to Login
+          onPress={handleLogout}
         >
           <Text className="text-white text-sm">Logout</Text>
         </TouchableOpacity>

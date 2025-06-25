@@ -39,20 +39,19 @@ export default function Login({ onLogin }) {
         email,
         password,
       });
+      console.log(response);
+      // Extract token and name from response
+      console.log(response.data);      
+      const { token, name } = response.data.credentials;
 
-      // Extract token from response
-      const { token } = response.data.credentials;
-
-      // Store token in AsyncStorage
+      // Store token and name in AsyncStorage
       await AsyncStorage.setItem('jwt_token', token);
+      await AsyncStorage.setItem('user_name', name);
 
       // Call onLogin callback with token
       if (onLogin) {
         onLogin(token);
       }
-
-      // Navigate to RegisteredCars screen
-      navigation.navigate('RegisteredCars');
 
       // Show success message
       Alert.alert('Success', 'Logged in successfully!');

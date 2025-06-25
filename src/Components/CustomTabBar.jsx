@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 
 export default function CustomTabBar({ state, descriptors, navigation }) {
   return (
-    <View className="flex-row absolute bottom-0 bg-white  shadow-lg mb-10 rounded-[50px] p-5">
+    <View className="flex-row absolute bottom-0 bg-white shadow-lg rounded-[50px] p-1">
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label =

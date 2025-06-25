@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,25 +9,104 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
 import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { jwtDecode } from "jwt-decode";
+import axios from "axios";
+import { API_BASE_URL } from "../utils/config";
 
 export default function EditProfile() {
-  const [avatar, setAvatar] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    mobile: "",
+    currentPassword: "",
+  });
+  const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
-  const openCamera = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (permission.granted === false) {
-      alert("Camera access is required!");
+  // Fetch user data on mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = await AsyncStorage.getItem("jwt_token");
+        const name = await AsyncStorage.getItem("user_name");
+        if (!token) {
+          Alert.alert("Error", "Please log in again.");
+          navigation.navigate("Login");
+          return;
+        }
+
+        const decoded = jwtDecode(token);
+        setFormData({
+          name: name || "",
+          email: decoded.email || "",
+          mobile: "", // Mobile not in JWT, left empty for user input
+          currentPassword: "",
+        });
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        Alert.alert("Error", "Failed to load profile data.");
+      }
+    };
+
+    fetchUserData();
+  }, [navigation]);
+
+  // Handle input changes
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Handle form submission
+  const handleSaveChanges = async () => {
+    if (!formData.name.trim()) {
+      Alert.alert("Missing Field", "Please enter your full name.");
+      return;
+    }
+    if (!formData.currentPassword.trim()) {
+      Alert.alert("Missing Field", "Please enter your current password.");
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.5 });
-    if (!result.canceled) {
-      setAvatar(result.assets[0].uri);
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem("jwt_token");
+      const decoded = jwtDecode(token);
+      const userId = decoded._id;
+
+      // Prepare request body (exclude email for non-admins)
+      const requestBody = {
+        name: formData.name,
+        mobile: formData.mobile.trim() || undefined,
+        currentPassword: formData.currentPassword,
+      };
+
+      // Send PATCH request to update user
+      const response = await axios.patch(
+        `${API_BASE_URL}/user/${userId}/update/${userId}`,
+        requestBody,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Update name in AsyncStorage
+      await AsyncStorage.setItem("user_name", response.data.name);
+
+      Alert.alert("Success", "Profile updated successfully!");
+      navigation.navigate("Profile");
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message || "Failed to update profile. Please try again.";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -51,25 +130,10 @@ export default function EditProfile() {
             </TouchableOpacity>
           </View>
 
-          {/* Avatar with Camera Icon */}
+          {/* Avatar Placeholder (No Image Integration) */}
           <View className="items-center my-6">
             <View className="w-28 h-28 rounded-full bg-[#3a3a3a] justify-center items-center relative">
-              {avatar ? (
-                <Image
-                  source={{ uri: avatar }}
-                  className="w-full h-full rounded-full"
-                />
-              ) : (
-                <FontAwesome name="user" size={40} color="white" />
-              )}
-
-              {/* Camera Icon (Original Style) */}
-              <TouchableOpacity
-                onPress={openCamera}
-                className="absolute bottom-0 right-0 bg-black p-2 rounded-full border border-white"
-              >
-                <FontAwesome name="camera" size={16} color="white" />
-              </TouchableOpacity>
+              <FontAwesome name="user" size={40} color="white" />
             </View>
           </View>
 
@@ -82,10 +146,12 @@ export default function EditProfile() {
                 placeholder="Paul Walker"
                 placeholderTextColor="#ccc"
                 className="bg-black text-white px-5 py-4 rounded-xl text-lg"
+                value={formData.name}
+                onChangeText={(text) => handleInputChange("name", text)}
               />
             </View>
 
-            {/* Email */}
+            {/* Email (Disabled) */}
             <View>
               <Text className="text-white mb-2 text-base">Email</Text>
               <TextInput
@@ -93,6 +159,7 @@ export default function EditProfile() {
                 placeholderTextColor="#ccc"
                 editable={false}
                 className="bg-black text-white px-5 py-4 rounded-xl text-lg opacity-50"
+                value={formData.email}
               />
             </View>
 
@@ -111,16 +178,35 @@ export default function EditProfile() {
                   placeholderTextColor="#ccc"
                   keyboardType="phone-pad"
                   className="flex-1 text-white text-lg"
+                  value={formData.mobile}
+                  onChangeText={(text) => handleInputChange("mobile", text)}
                 />
               </View>
+            </View>
+
+            {/* Current Password */}
+            <View>
+              <Text className="text-white mb-2 text-base">Current Password</Text>
+              <TextInput
+                placeholder="Enter current password"
+                placeholderTextColor="#ccc"
+                secureTextEntry
+                className="bg-black text-white px-5 py-4 rounded-xl text-lg"
+                value={formData.currentPassword}
+                onChangeText={(text) => handleInputChange("currentPassword", text)}
+              />
             </View>
           </View>
 
           {/* Save Button */}
           <View className="px-5 pt-12 pb-48">
-            <TouchableOpacity className="bg-black py-4 rounded-xl items-center border border-gray-600">
+            <TouchableOpacity
+              className="bg-black py-4 rounded-xl items-center border border-gray-600"
+              onPress={handleSaveChanges}
+              disabled={loading}
+            >
               <Text className="text-white text-base font-semibold">
-                Save Changes
+                {loading ? "Saving..." : "Save Changes"}
               </Text>
             </TouchableOpacity>
           </View>
