@@ -4,13 +4,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../utils/config';
+import showToast from '../utils/Toast';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -22,14 +22,22 @@ export default function Login({ onLogin }) {
   const handleSignIn = async () => {
     // Validate inputs
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing Fields', 'Please enter both Email and Password.');
+      showToast({
+        type: 'error',
+        title: 'Missing Fields',
+        message: 'Please enter both Email and Password.',
+      });    
       return;
     }
 
     // Basic email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Please enter a valid email address.',
+      });    
       return;
     }
 
@@ -54,12 +62,20 @@ export default function Login({ onLogin }) {
       }
 
       // Show success message
-      Alert.alert('Success', 'Logged in successfully!');
+        showToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Logged in successfully!',
+      });    
     } catch (error) {
       // Handle errors
       const errorMessage =
         error.response?.data?.message || 'Invalid credentials. Please try again.';
-      Alert.alert('Login Failed', errorMessage);
+      showToast({
+        type: 'error',
+        title: 'Login Failed',
+        message: errorMessage,
+      });    
     }
   };
 

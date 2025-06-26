@@ -15,6 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { API_BASE_URL } from "../utils/config";
 import Icon from "react-native-vector-icons/Feather";
+import showToast from '../utils/Toast';
 
 const NewWorkOrderScreen = () => {
   const navigation = useNavigation();
@@ -43,8 +44,13 @@ const NewWorkOrderScreen = () => {
         const token = await AsyncStorage.getItem("jwt_token");
         if (!token) {
           console.warn("No token found in AsyncStorage");
-          alert("Please log in again.");
-          navigation.navigate("Login");
+       
+          showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
           return;
         }
         const decoded = jwtDecode(token);
@@ -55,8 +61,12 @@ const NewWorkOrderScreen = () => {
         setForm((prev) => ({ ...prev, createdBy: decoded._id }));
       } catch (error) {
         console.error("Error decoding token:", error);
-        alert("Failed to authenticate. Please log in again.");
-        navigation.navigate("Login");
+        showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to authenticate. Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
       }
     };
     fetchUserDetails();
@@ -68,11 +78,19 @@ const NewWorkOrderScreen = () => {
 
   const handleSubmit = async () => {
     if (!carId) {
-      alert("No car selected. Please select a car.");
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'No car selected. Please select a car.',
+        });
       return;
     }
     if (!userId) {
-      alert("User not authenticated. Please log in again.");
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'No car selected. Please select a car.',
+        });
       return;
     }
 
@@ -100,15 +118,19 @@ const NewWorkOrderScreen = () => {
         }
       );
       console.log("Work order created:", response.data);
-      alert("Work order created successfully!");
-      navigation.navigate("RegisteredCars"); // Navigate back to refresh the list
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Work order created successfully!',
+        });
+      navigation.navigate("RegisteredCars");
     } catch (error) {
       console.error("Error creating work order:", error.response?.data || error);
-      alert(
-        `Failed to create work order: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: `Failed to create work order: ${error.response?.data?.message || error.message}`
+        });
     } finally {
       setLoading(false);
     }

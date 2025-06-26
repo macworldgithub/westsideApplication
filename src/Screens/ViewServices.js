@@ -210,7 +210,6 @@
 //   );
 // }
 // Updated ViewServices.js with FlatList Pagination
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -218,10 +217,10 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   FlatList,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -230,6 +229,7 @@ import { jwtDecode } from 'jwt-decode';
 import { API_BASE_URL } from '../utils/config';
 import Search from '../Components/Search';
 import ServiceCard from '../Components/ServiceCard';
+import showToast from '../utils/Toast';
 
 export default function ViewServices() {
   const navigation = useNavigation();
@@ -237,6 +237,7 @@ export default function ViewServices() {
   const { workOrderId } = route.params || {};
 
   const [repairs, setRepairs] = useState([]);
+  const [filteredRepairs, setFilteredRepairs] = useState([]); // New state for filtered repairs
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -251,9 +252,12 @@ export default function ViewServices() {
       try {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
-          Alert.alert('Session Expired', 'Please log in again.', [
-            { text: 'OK', onPress: () => navigation.navigate('Login') },
-          ]);
+          showToast({
+            type: 'error', 
+            title: 'Session Expired',
+            message: 'Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
           return;
         }
         const decoded = jwtDecode(token);
@@ -261,9 +265,12 @@ export default function ViewServices() {
         setUserId(decoded._id);
         setUserRole(decoded.role);
       } catch (error) {
-        Alert.alert('Error', 'Failed to authenticate. Please log in again.', [
-          { text: 'OK', onPress: () => navigation.navigate('Login') },
-        ]);
+        showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to authenticate. Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
       }
     };
     fetchUserDetails();
@@ -302,7 +309,12 @@ export default function ViewServices() {
         return isLoadMore ? [...prev, ...newRepairs] : fetched;
       });
     } catch (error) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to fetch repairs.');
+      showToast({
+                    type: 'error', 
+                    title: 'Error',
+                    message:  error.response?.data?.message || 'Failed to fetch repairs.'
+                  });
+      
     } finally {
       setInitialLoading(false);
       setLoadingMore(false);
@@ -314,32 +326,37 @@ export default function ViewServices() {
     if (userId && userRole && workOrderId) {
       fetchRepairs(page > 1);
     }
-  }, [userId, userRole, workOrderId, page]);
+  }, [userId, userRole, workOrderId, page, fetchRepairs]);
+
+  useEffect(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) {
+      setFilteredRepairs(repairs); // Show all repairs if no query
+      return;
+    }
+    const filtered = repairs.filter(
+      (repair) =>
+        repair.mechanicName?.toLowerCase().includes(query) ||
+        repair.partName?.toLowerCase().includes(query)
+    );
+    setFilteredRepairs(filtered);
+  }, [searchQuery, repairs]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    setSearchQuery(''); // Clear search query on refresh
     setPage(1);
   }, []);
 
-  const handleSearch = useCallback((text) => {
+  const handleSearch = (text) => {
     setSearchQuery(text);
-    setPage(1);
-  }, []);
+  };
 
   const loadMore = () => {
     if (page < totalPages && !loadingMore) {
       setPage((prev) => prev + 1);
     }
   };
-
-  const filteredRepairs = repairs.filter((repair) => {
-    const query = searchQuery.trim().toLowerCase();
-    return (
-      !query ||
-      repair.mechanicName?.toLowerCase().includes(query) ||
-      repair.partName?.toLowerCase().includes(query)
-    );
-  });
 
   const renderRepair = ({ item: repair }) => (
     <ServiceCard
@@ -358,22 +375,22 @@ export default function ViewServices() {
       beforeImageUrl={repair.beforeImageUri}
       afterImageUrl={repair.afterImageUri}
       onPress={() => {
-          if (
-            (userRole === 'technician' || userRole === 'shopManager') &&
-            repair.submitted
-          ) {
-            Alert.alert(
-              'Cannot Edit',
-              'You cannot edit this service as it is submitted.',
-              [{ text: 'OK' }]
-            );
-          } else {
-            navigation.navigate('EditServiceScreen', {
-              repairId: repair._id,
-              workOrderId,
-            });
-          }
-        }}
+        if (
+          (userRole === 'technician' || userRole === 'shopManager') &&
+          repair.submitted
+        ) {
+          showToast({
+                type: 'error',
+                title: 'Cannot Edit',
+                message: 'You cannot edit this service as it is submitted.',
+              });
+        } else {
+          navigation.navigate('EditServiceScreen', {
+            repairId: repair._id,
+            workOrderId,
+          });
+        }
+      }}
     />
   );
 
@@ -427,7 +444,7 @@ export default function ViewServices() {
 
       {/* Paginated List */}
       <FlatList
-        data={filteredRepairs}
+        data={filteredRepairs} // Use filteredRepairs instead of filtered repairs inline
         keyExtractor={(item, index) => item._id || index.toString()}
         renderItem={renderRepair}
         onEndReached={loadMore}

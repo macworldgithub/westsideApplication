@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -17,6 +16,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import { API_BASE_URL } from "../utils/config";
+import showToast from '../utils/Toast';
 
 export default function EditProfile() {
   const [formData, setFormData] = useState({
@@ -35,7 +35,11 @@ export default function EditProfile() {
         const token = await AsyncStorage.getItem("jwt_token");
         const name = await AsyncStorage.getItem("user_name");
         if (!token) {
-          Alert.alert("Error", "Please log in again.");
+           showToast({
+             type: 'error',
+            title: 'Error',
+            message: 'Please log in again.',
+          }); 
           navigation.navigate("Login");
           return;
         }
@@ -49,7 +53,12 @@ export default function EditProfile() {
         });
       } catch (error) {
         console.error("Error fetching user data:", error);
-        Alert.alert("Error", "Failed to load profile data.");
+        showToast({
+             type: 'error',
+            title: 'Error',
+            message: 'Failed to load profile data.',
+          }); 
+        
       }
     };
 
@@ -64,11 +73,21 @@ export default function EditProfile() {
   // Handle form submission
   const handleSaveChanges = async () => {
     if (!formData.name.trim()) {
-      Alert.alert("Missing Field", "Please enter your full name.");
+      showToast({
+             type: 'error',
+            title: 'Missing Field',
+            message: 'Please enter your full name.',
+          }); 
+      
       return;
     }
     if (!formData.currentPassword.trim()) {
-      Alert.alert("Missing Field", "Please enter your current password.");
+      showToast({
+             type: 'error',
+            title: 'Missing Field',
+            message: 'Please enter your current password.',
+          }); 
+      
       return;
     }
 
@@ -99,12 +118,20 @@ export default function EditProfile() {
       // Update name in AsyncStorage
       await AsyncStorage.setItem("user_name", response.data.name);
 
-      Alert.alert("Success", "Profile updated successfully!");
+      showToast({
+             type: 'success',
+            title: 'Success',
+            message: 'Profile updated successfully!',
+          }); 
       navigation.navigate("Profile");
     } catch (error) {
       const errorMessage =
         error.response?.data?.message || "Failed to update profile. Please try again.";
-      Alert.alert("Error", errorMessage);
+      showToast({
+             type: 'error',
+            title: 'Error',
+            message: errorMessage,
+          }); 
     } finally {
       setLoading(false);
     }

@@ -16,6 +16,7 @@ import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { API_BASE_URL } from "../utils/config";
+import showToast from '../utils/Toast';
 
 const NewCarRegistration = () => {
   const navigation = useNavigation();
@@ -97,14 +98,22 @@ const NewCarRegistration = () => {
       !carYear.trim() ||
       !chassisNumber.trim()
     ) {
-      Alert.alert("Missing Fields", "Please fill in all required fields.");
+      showToast({
+          type: 'error',
+          title: 'Missing Fields',
+          message: 'Please fill in all required fields.'
+      });
       return;
     }
 
     // Validate carYear as a number
     const yearNum = parseInt(carYear);
     if (isNaN(yearNum) || yearNum < 1900 || yearNum > new Date().getFullYear()) {
-      Alert.alert("Invalid Year", "Please enter a valid car year.");
+      showToast({
+          type: 'error',
+          title: 'Invalid Year',
+          message: 'Please enter a valid car year.'
+      });
       return;
     }
 
@@ -145,16 +154,24 @@ const NewCarRegistration = () => {
         }
       );
 
-      Alert.alert("Success", "Car registered successfully!", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      showToast({
+      type: 'success',
+      title: 'Success',
+      message: 'Car registered successfully!',
+      onHide: () => navigation.goBack(), 
+      });
     } catch (error) {
       console.error("Error registering car:", error);
       const errorMessage =
         error.response?.data?.message ||
         error.message ||
         "Failed to register car. Please try again.";
-      Alert.alert("Error", errorMessage);
+      showToast({
+          type: 'error',
+          title: 'Error',
+          message: errorMessage
+      });
+      
     } finally {
       setLoading(false);
     }

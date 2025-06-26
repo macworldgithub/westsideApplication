@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { API_BASE_URL } from '../utils/config';
+import showToast from '../utils/Toast';
 
 const CarOrderDetails = () => {
   const navigation = useNavigation();
@@ -24,9 +25,12 @@ const CarOrderDetails = () => {
       try {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
-          Alert.alert('Session Expired', 'Please log in again.', [
-            { text: 'OK', onPress: () => navigation.navigate('Login') },
-          ]);
+          showToast({
+            type: 'error', 
+            title: 'Session Expired',
+            message: 'Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
           return;
         }
         const decoded = jwtDecode(token);
@@ -47,7 +51,11 @@ const CarOrderDetails = () => {
         setWorkOrder(response.data);
       } catch (error) {
         console.error('Error fetching work order:', error.response?.data || error);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to fetch work order details.');
+        showToast({
+        type: 'error',
+        title: 'Error',
+        message:  error.response?.data?.message || 'Failed to fetch work order details.',
+      });    
       } finally {
         setLoading(false);
       }
@@ -56,7 +64,11 @@ const CarOrderDetails = () => {
       fetchData();
     } else {
       setLoading(false);
-      Alert.alert('Error', 'No work order ID provided.');
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: `No work order ID provided.`,
+      });    
     }
   }, [navigation, workOrderId]);
 

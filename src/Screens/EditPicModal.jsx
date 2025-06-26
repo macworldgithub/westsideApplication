@@ -7,7 +7,7 @@ const EditPicModal = ({ visible, onClose, onImageSelected }) => {
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Camera access is required to take a photo.');
+      // Alert.alert('Permission Denied', 'Camera access is required to take a photo.');
       return;
     }
 
@@ -25,7 +25,7 @@ const EditPicModal = ({ visible, onClose, onImageSelected }) => {
   const handleChooseFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Library access is required to select a photo.');
+      // Alert.alert('Permission Denied', 'Library access is required to select a photo.');
       return;
     }
 

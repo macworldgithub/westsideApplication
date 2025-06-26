@@ -16,7 +16,7 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { API_BASE_URL } from '../utils/config';
 import {jwtDecode} from 'jwt-decode';
-
+import showToast from '../utils/Toast';
 const EditCarDetail = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -41,7 +41,12 @@ const EditCarDetail = () => {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
           console.warn('No token found in AsyncStorage');
-          alert('Please log in again.');
+          showToast({
+                  type: 'error',
+                  title: 'Error',
+                  message: 'Please log in again',
+                });    
+          
           navigation.navigate('Login');
           return;
         }
@@ -52,7 +57,11 @@ const EditCarDetail = () => {
         setUserId(decoded._id);
       } catch (error) {
         console.error('Error decoding token:', error);
-        alert('Failed to authenticate. Please log in again.');
+        showToast({
+        type: 'error',
+        title: 'Authentication',
+        message: 'Failed to authenticate. Please log in again.',
+      });    
         navigation.navigate('Login');
       }
     };
@@ -81,7 +90,11 @@ const EditCarDetail = () => {
     }
 
     if (!form.chassisNumber) {
-      alert('Chassis number is required for image upload.');
+      showToast({
+        type: 'error',
+        title: 'Missing Field',
+        message: 'Chassis number is required for image upload.',
+      });  
       setModalVisible(false);
       return;
     }
@@ -113,10 +126,19 @@ const EditCarDetail = () => {
       );
 
       setForm(prev => ({ ...prev, imageUri: result.data.image }));
-      alert('Image uploaded successfully!');
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Image uploaded successfully!',
+      }); 
     } catch (error) {
       console.error('Error uploading image:', error.response?.data || error);
-      alert(`Failed to upload image: ${error.response?.data?.message || error.message}`);
+      showToast({
+        type: 'error',
+        title: 'Failed',
+        message: `Failed to upload image: ${error.response?.data?.message || error.message}`,
+      }); 
+      
     } finally {
       setLoading(false);
       setModalVisible(false);
@@ -125,7 +147,11 @@ const EditCarDetail = () => {
 
   const handleSubmit = async () => {
     if (!form.chassisNumber) {
-      alert('Chassis number is required.');
+      showToast({
+        type: 'error',
+        title: 'Missing Field',
+        message: 'Chassis number is required.',
+      });       
       return;
     }
 
@@ -151,11 +177,20 @@ const EditCarDetail = () => {
       );
 
       console.log('Car updated:', response.data);
-      alert('Car details updated successfully!');
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Car details updated successfully!',
+      }); 
+      
       navigation.navigate('RegisteredCars'); // Navigate back to refresh list
     } catch (error) {
       console.error('Error updating car:', error.response?.data || error);
-      alert(`Failed to update car: ${error.response?.data?.message || error.message}`);
+      showToast({
+        type: 'error',
+        title: 'Failed',
+        message: `Failed to update car: ${error.response?.data?.message || error.message}`,
+      }); 
     } finally {
       setLoading(false);
     }
@@ -224,7 +259,7 @@ const EditCarDetail = () => {
           {/* Update Button After Chassis Number */}
           {field.key === 'chassisNumber' && (
             <TouchableOpacity
-              className={`bg-white py-2 rounded-xl items-center mt-2 ${loading ? 'opacity-50' : ''}`}
+              className={`bg-white py-3 rounded-xl items-center mb-20 mt-4 ${loading ? 'opacity-50' : ''}`}
               onPress={handleSubmit}
               disabled={loading}
             >
@@ -238,18 +273,7 @@ const EditCarDetail = () => {
         </View>
       ))}
 
-      {/* Existing Update Button */}
-      <TouchableOpacity
-        className={`bg-blue-600 py-3 rounded-xl items-center mb-20 mt-4 ${loading ? 'opacity-50' : ''}`}
-        onPress={handleSubmit}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator size="small" color="#ffffff" />
-        ) : (
-          <Text className="text-white font-bold text-base">Update</Text>
-        )}
-      </TouchableOpacity>
+      
     </ScrollView>
   );
 };

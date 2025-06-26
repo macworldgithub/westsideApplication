@@ -5,13 +5,13 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
-  Alert,
+  ActivityIndicator
 } from "react-native";
 import { FontAwesome, Feather, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
+import showToast from '../utils/Toast';
 
 export default function Profile({ onLogout }) {
   const [user, setUser] = useState({ name: '', email: '' });
@@ -38,7 +38,11 @@ export default function Profile({ onLogout }) {
         });
       } catch (error) {
         console.error('Error fetching user data:', error);
-        Alert.alert('Error', 'Failed to load user profile. Please try again.');
+        showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to load user profile. Please try again.'
+          });
       } finally {
         setLoading(false);
       }
@@ -58,7 +62,11 @@ export default function Profile({ onLogout }) {
       }
     } catch (error) {
       console.error('Error during logout:', error);
-      Alert.alert('Error', 'Failed to log out. Please try again.');
+      showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to log out. Please try again.'
+          });
     }
   };
 
@@ -74,6 +82,9 @@ export default function Profile({ onLogout }) {
     <SafeAreaView className="flex-1 bg-[#191919]">
       {/* Header Row */}
       <View className="flex-row justify-between items-center px-4 mt-10">
+        <TouchableOpacity onPress={() => navigation.navigate('RegisteredCars')}>
+          <FontAwesome name="angle-left" size={24} color="white" />
+        </TouchableOpacity>
         <Text className="text-white text-xl font-semibold">Profile</Text>
         <TouchableOpacity
           className="bg-[#2f2f2f] px-6 py-3 rounded-lg"

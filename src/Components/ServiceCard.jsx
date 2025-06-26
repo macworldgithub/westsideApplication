@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
 const ServiceCard = ({
   id,
@@ -43,7 +44,9 @@ const ServiceCard = ({
               resizeMode="cover"
             />
           ) : (
-            <View className="bg-gray-300 w-20 h-20 rounded" />
+            <View className="w-20 h-20 rounded-lg bg-gray-200 items-center justify-center">
+                  <Icon name="image" size={30} color="#888" />
+            </View>
           )}
         </View>
 
@@ -57,7 +60,9 @@ const ServiceCard = ({
               resizeMode="cover"
             />
           ) : (
-            <View className="bg-gray-300 w-20 h-20 rounded" />
+            <View className="w-20 h-20 rounded-lg bg-gray-200 items-center justify-center">
+                  <Icon name="image" size={30} color="#888" />
+            </View>
           )}
         </View>
       </View>

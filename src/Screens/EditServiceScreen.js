@@ -19,6 +19,7 @@ import { API_BASE_URL } from '../utils/config';
 import EditPicModal from './EditPicModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ActivityIndicator } from 'react-native-paper';
+import showToast from '../utils/Toast';
 
 const EditServiceScreen = () => {
   const navigation = useNavigation();
@@ -47,9 +48,12 @@ const EditServiceScreen = () => {
       try {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
-          Alert.alert('Session Expired', 'Please log in again.', [
-            { text: 'OK', onPress: () => navigation.navigate('Login') },
-          ]);
+          showToast({
+            type: 'error', 
+            title: 'Session Expired',
+            message: 'Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
           return;
         }
         const decoded = jwtDecode(token);
@@ -87,7 +91,11 @@ const EditServiceScreen = () => {
         });
       } catch (error) {
         console.error('Error fetching repair:', error.response?.data || error);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to fetch repair.');
+        showToast({
+             type: 'error',
+            title: 'Error',
+            message:  error.response?.data?.message || 'Failed to fetch repair.',
+          }); 
       } finally {
         setLoading(false);
       }
@@ -108,7 +116,11 @@ const EditServiceScreen = () => {
 
   const openImageModal = (type) => {
     if (form.submitted && userRole === 'technician') {
-      Alert.alert('Error', 'Cannot edit images for submitted repairs.');
+      showToast({
+             type: 'error',
+            title: 'Error',
+            message: `Cannot edit images for submitted repairs.`,
+          }); 
       return;
     }
     setImageType(type);
@@ -117,7 +129,11 @@ const EditServiceScreen = () => {
 
   const handleDeleteImage = async (type) => {
     if (form.submitted && userRole === 'technician') {
-      Alert.alert('Error', 'Cannot delete images for submitted repairs.');
+      showToast({
+             type: 'error',
+            title: 'Error',
+            message: `Cannot deleted images for submitted repairs.`,
+          }); 
       return;
     }
     try {
@@ -126,10 +142,18 @@ const EditServiceScreen = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setForm((prev) => ({ ...prev, [`${type}ImageUri`]: null }));
-      Alert.alert('Success', `${type.charAt(0).toUpperCase() + type.slice(1)} image deleted.`);
+      showToast({
+             type: 'success',
+            title: 'Success',
+            message: `${type.charAt(0).toUpperCase() + type.slice(1)} image deleted.`,
+          }); 
     } catch (error) {
       console.error('Error deleting image:', error.response?.data || error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to delete image.');
+      showToast({
+             type: 'error',
+            title: 'Error',
+            message:  error.response?.data?.message || 'Failed to delete image.',
+          }); 
     }
   };
 
@@ -156,18 +180,31 @@ const EditServiceScreen = () => {
 
   const handleSubmit = async () => {
     if (!workOrderId || !repairId || !userId) {
-      Alert.alert('Error', 'Missing required parameters.');
+      showToast({
+             type: 'error',
+            title: 'Missing Parameters',
+            message: `Missing required parameters.`,
+          }); 
+      
       return;
     }
 
     if (!form.mechanicName || !form.partName || !form.price || !form.finishDate) {
-      Alert.alert('Error', 'Please fill all required fields.');
+      showToast({
+             type: 'error',
+            title: 'Missing Fields',
+            message: `Please fill all required fields.`,
+          }); 
       return;
     }
 
     const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
     if (!dateRegex.test(form.finishDate)) {
-      Alert.alert('Error', 'Finish date must be in DD-MM-YYYY format.');
+      showToast({
+             type: 'error',
+            title: 'Error',
+            message: `Finish date must be in DD-MM-YYYY format.`,
+          }); 
       return;
     }
 
@@ -221,12 +258,22 @@ const EditServiceScreen = () => {
       );
 
       console.log('Repair updated:', response.data);
-      Alert.alert('Success', 'Repair updated successfully.', [
-        { text: 'OK', onPress: () => navigation.navigate('ViewServices', { workOrderId }) },
-      ]);
+      showToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Repair updated successfully.',
+      });
+
+      // Navigate after showing the toast
+      navigation.navigate('ViewServices', { workOrderId });
     } catch (error) {
       console.error('Error updating repair:', error.response?.data || error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update repair.');
+      showToast({
+             type: 'error',
+            title: 'Error',
+            message:  error.response?.data?.message || 'Failed to update repair.',
+          }); 
+      
     }
   };
 
@@ -359,7 +406,6 @@ const EditServiceScreen = () => {
         </View>
 
         {/* Submit Button */}
-        {(userRole === 'shopManager' || userRole === 'systemAdministrator') && (
           <View className="mb-4">
             <Text className="text-white mb-1">Submission Status</Text>
             <TouchableOpacity
@@ -371,13 +417,11 @@ const EditServiceScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
-        )}
 
         {/* Update Button */}
         <TouchableOpacity
           className="bg-black py-3 rounded-xl items-center border border-gray-600"
           onPress={handleSubmit}
-          disabled={form.submitted && userRole === 'technician'}
         >
           <Text className="text-white font-bold">Update</Text>
         </TouchableOpacity>

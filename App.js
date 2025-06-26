@@ -138,6 +138,8 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { enableScreens } from "react-native-screens";
+import Toast from 'react-native-toast-message'; 
+import { toastConfig } from "./src/utils/toastconfig";
 
 import Login from "./src/Screens/Login";
 import Splash from "./src/Screens/Splash";
@@ -159,7 +161,7 @@ import GeneralSettingsScreen from "./src/Screens/GeneralSetting";
 import LanguageSetting from "./src/Screens/LanguageSetting";
 import AccountSecurityScreen from "./src/Screens/AccountSecurity";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import UpdatePasswordScreen from './src/Screens/UpdatePasswordScreen';
 const Stack = createStackNavigator();
 const RootStack = createStackNavigator();
 
@@ -255,6 +257,8 @@ export default function App() {
                 name="AccountSecurity"
                 component={AccountSecurityScreen}
               />
+              <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} />
+
               <Stack.Screen
                 name="GeneralSetting"
                 component={GeneralSettingsScreen}
@@ -266,6 +270,8 @@ export default function App() {
             </>
           )}
         </Stack.Navigator>
+      <Toast config={toastConfig} />
+
       </NavigationContainer>
 
       {/* Always render Splash screen OVER EVERYTHING until it fades out */}

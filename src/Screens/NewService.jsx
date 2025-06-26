@@ -8,7 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
@@ -17,6 +17,7 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { API_BASE_URL } from '../utils/config';
 import EditPicModal from './EditPicModal';
+import showToast from '../utils/Toast';
 
 const NewServiceScreen = () => {
   const navigation = useNavigation();
@@ -42,9 +43,12 @@ const NewServiceScreen = () => {
       try {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
-          Alert.alert('Session Expired', 'Please log in again.', [
-            { text: 'OK', onPress: () => navigation.navigate('Login') },
-          ]);
+          showToast({
+            type: 'error', 
+            title: 'Session Expired',
+            message: 'Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
           return;
         }
         const decoded = jwtDecode(token);
@@ -54,9 +58,12 @@ const NewServiceScreen = () => {
         setUserRole(decoded.role);
       } catch (error) {
         console.error('Error decoding token:', error);
-        Alert.alert('Error', 'Failed to authenticate. Please log in again.', [
-          { text: 'OK', onPress: () => navigation.navigate('Login') },
-        ]);
+        showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to authenticate. Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
       }
     };
     fetchUserDetails();
@@ -80,20 +87,35 @@ const NewServiceScreen = () => {
 
   const handleSubmit = async () => {
     if (!workOrderId) {
-      Alert.alert('Error', 'Work Order ID is missing.');
+      showToast({
+                type: 'error',
+                title: 'Error',
+                message: 'Work Order ID is missing.',
+              
+              });
       return;
     }
 
     // Validate required fields
     if (!form.mechanicName || !form.partName || !form.price || !form.finishDate) {
-      Alert.alert('Error', 'Please fill all required fields.');
+      showToast({
+                type: 'error',
+                title: 'Missing Fields',
+                message: 'Please fill all required fields.',
+              
+              });
       return;
     }
 
     // Validate date format (DD-MM-YYYY)
     const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
     if (!dateRegex.test(form.finishDate)) {
-      Alert.alert('Error', 'Finish date must be in DD-MM-YYYY format.');
+      showToast({
+                type: 'error',
+                title: 'Error',
+                message: 'Finish date must be in DD-MM-YYYY format.',
+              
+              });
       return;
     }
 
@@ -134,12 +156,20 @@ const NewServiceScreen = () => {
         },
       });
       console.log('Repair created:', response.data);
-      Alert.alert('Success', 'Repair created successfully.', [
-        { text: 'OK', onPress: () => navigation.navigate('ViewServices', { workOrderId }) },
-      ]);
+      showToast({
+            type: 'success',
+            title: 'Success',
+            message: 'Repair created successfully.',
+            onHide: () => navigation.navigate('ViewServices', { workOrderId })
+          });
     } catch (error) {
       console.error('Error creating repair:', error.response?.data || error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create repair.');
+      showToast({
+                type: 'error',
+                title: 'Error',
+                message: error.response?.data?.message || 'Failed to create repair.',
+              
+              });
     }
   };
 

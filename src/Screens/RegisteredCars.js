@@ -251,12 +251,15 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Feather';
+
 import { jwtDecode } from 'jwt-decode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/config';
 import Button from '../Components/Button';
 import Search from '../Components/Search';
+import showToast from '../utils/Toast';
 
 const RegisteredCars = ({ navigation }) => {
   const [userRole, setUserRole] = useState(null);
@@ -276,8 +279,12 @@ const RegisteredCars = ({ navigation }) => {
       try {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
-          alert('Token missing. Please log in again.');
-          navigation.navigate('Login');
+          showToast({
+            type: 'error', 
+            title: 'Session Expired',
+            message: 'Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
           return;
         }
         const decoded = jwtDecode(token);
@@ -285,8 +292,12 @@ const RegisteredCars = ({ navigation }) => {
         setUserId(decoded._id);
         setUserRole(decoded.role);
       } catch (error) {
-        alert('Authentication failed. Please log in again.');
-        navigation.navigate('Login');
+        showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to authenticate. Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
       }
     };
     fetchUserDetails();
@@ -324,7 +335,11 @@ const RegisteredCars = ({ navigation }) => {
 
       setCars(updatedList);
     } catch (error) {
-      alert(`Failed to fetch cars: ${error.response?.data?.message || error.message}`);
+      showToast({
+            type: 'error', 
+            title: 'Error',
+            message: `Failed to fetch cars: ${error.response?.data?.message || error.message}`
+          });
     } finally {
       setInitialLoading(false);
       setRefreshing(false);
@@ -384,11 +399,17 @@ const RegisteredCars = ({ navigation }) => {
 
   const renderCar = ({ item: car }) => (
     <View className="flex-row bg-white rounded-xl p-3 mb-4">
-      <Image
-        source={car.image ? { uri: car.image } : require('../../assets/Car.png')}
-        className="w-20 h-20 rounded-lg"
-        resizeMode="cover"
-      />
+      {car.image ? (
+          <Image
+            source={{ uri: car.image }}
+            className="w-20 h-20 rounded-lg"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="w-20 h-20 rounded-lg bg-gray-200 items-center justify-center">
+            <Icon name="image" size={30} color="#888" />
+          </View>
+        )}
       <View className="flex-1 ml-3 justify-between">
         <Text className="text-black text-base font-bold">{car.plate}</Text>
         <Text className="text-gray-400 text-xs">{car.model}</Text>

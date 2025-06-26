@@ -268,7 +268,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -279,6 +278,7 @@ import { API_BASE_URL } from '../utils/config';
 import Search from '../Components/Search';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import showToast from '../utils/Toast';
 
 const getStatusColor = (status) => {
   switch (status) {
@@ -313,9 +313,12 @@ export default function WorkOrdersScreen() {
       try {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
-          Alert.alert('Session Expired', 'Please log in again.', [
-            { text: 'OK', onPress: () => navigation.navigate('Login') },
-          ]);
+          showToast({
+              type: 'error', 
+              title: 'Session Expired',
+              message: 'Please log in again.',
+              onHide: () => navigation.navigate('Login')
+            });
           return;
         }
         const decoded = jwtDecode(token);
@@ -323,9 +326,12 @@ export default function WorkOrdersScreen() {
         setUserId(decoded._id);
         setUserRole(decoded.role);
       } catch (error) {
-        Alert.alert('Error', 'Authentication failed.', [
-          { text: 'OK', onPress: () => navigation.navigate('Login') },
-        ]);
+        showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to authenticate. Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
       }
     };
     fetchUserDetails();
@@ -369,10 +375,12 @@ export default function WorkOrdersScreen() {
           return updated;
         });
       } catch (error) {
-        Alert.alert(
-          'Error',
-          error.response?.data?.message || 'Failed to fetch work orders.'
-        );
+        
+        showToast({
+              type: 'error', 
+              title: 'Error',
+              message:  error.response?.data?.message || 'Failed to fetch work orders.'
+            });
       } finally {
         setInitialLoading(false);
         setLoadingMore(false);
@@ -448,7 +456,12 @@ export default function WorkOrdersScreen() {
       setDownloadingReportId(workOrderId);
       const token = await AsyncStorage.getItem('jwt_token');
       if (!token) {
-        Alert.alert('Error', 'Please log in again.');
+        showToast({
+            type: 'error', 
+            title: 'Error',
+            message: 'Failed to authenticate. Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
         return;
       }
 
@@ -472,7 +485,12 @@ export default function WorkOrdersScreen() {
           dialogTitle: 'Open or Save Repair Report',
         });
       } else {
-        Alert.alert('Success', `PDF saved to ${filePath}`);
+        showToast({
+              type: 'success', 
+              title: 'Success',
+              message:  `PDF saved to ${filePath}`
+            });
+        
       }
     } catch (error) {
       console.error('Download Error:', error);
@@ -488,7 +506,11 @@ export default function WorkOrdersScreen() {
           // Fallback to default message if parsing fails
         }
       }
-      Alert.alert('Error', errorMessage);
+      showToast({
+              type: 'error', 
+              title: 'Error',
+              message:  errorMessage
+            });
     } finally {
       setDownloadingReportId(null);
     }

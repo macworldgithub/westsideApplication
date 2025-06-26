@@ -7,7 +7,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { API_BASE_URL } from '../utils/config';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import showToast from '../utils/Toast';
 
 const EditWorkOrder = () => {
   const navigation = useNavigation();
@@ -43,9 +43,12 @@ const EditWorkOrder = () => {
       try {
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
-          Alert.alert('Session Expired', 'Please log in again.', [
-            { text: 'OK', onPress: () => navigation.navigate('Login') },
-          ]);
+          showToast({
+            type: 'error', 
+            title: 'Session Expired',
+            message: 'Please log in again.',
+            onHide: () => navigation.navigate('Login'), 
+          });
           return;
         }
         const decoded = jwtDecode(token);
@@ -87,7 +90,11 @@ const EditWorkOrder = () => {
         });
       } catch (error) {
         console.error('Error fetching work order:', error.response?.data || error);
-        Alert.alert('Error', error.response?.data?.message || 'Failed to fetch work order details.');
+        showToast({
+            type: 'error', 
+            title: 'Error',
+            message:  error.response?.data?.message || 'Failed to fetch work order details.',
+          });
       } finally {
         setLoading(false);
       }
@@ -96,8 +103,13 @@ const EditWorkOrder = () => {
       fetchData();
     } else {
       setLoading(false);
-      Alert.alert('Error', 'No work order ID provided.');
+      showToast({
+             type: 'error',
+            title: 'Error',
+            message: 'No work order ID provided.',
+          }); 
     }
+    
   }, [navigation, workOrderId]);
 
   const handleChange = (key, value) => {
@@ -106,20 +118,32 @@ const EditWorkOrder = () => {
 
   const handleSubmit = async () => {
     if (!workOrderId || !userId) {
-      Alert.alert('Error', 'Missing required parameters.');
+      showToast({
+                  type: 'error',
+                  title: 'Error',
+                  message: 'Missing required parameters.',
+                });  
       return;
     }
 
     // Validate required fields
     if (!form.ownerName || !form.headMechanic || !form.phoneNumber || !form.startDate || !form.finishDate) {
-      Alert.alert('Error', 'Please fill all required fields.');
+      showToast({
+                  type: 'error',
+                  title: 'Error',
+                  message: 'Please fill all required fields.',
+                });  
       return;
     }
 
     // Validate date format (DD-MM-YYYY)
     const dateRegex = /^\d{2}-\d{2}-\d{4}$/;
     if (!dateRegex.test(form.startDate) || !dateRegex.test(form.finishDate)) {
-      Alert.alert('Error', 'Dates must be in DD-MM-YYYY format.');
+      showToast({
+                  type: 'error',
+                  title: 'Error',
+                  message: 'Dates must be in DD-MM-YYYY format.',
+                });  
       return;
     }
 
@@ -151,12 +175,19 @@ const EditWorkOrder = () => {
       );
 
       console.log('Work order updated:', response.data);
-      Alert.alert('Success', 'Work order updated successfully.', [
-        { text: 'OK', onPress: () => navigation.navigate('CarOrderDetails', { workOrderId }) },
-      ]);
+      showToast({
+            type: 'success',
+            title: 'Success',
+            message: 'Work order updated successfully.',
+            onHide: () => navigation.navigate('CarOrderDetails', { workOrderId }), // Navigate after toast
+          });
     } catch (error) {
       console.error('Error updating work order:', error.response?.data || error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update work order.');
+      showToast({
+            type: 'error', 
+            title: 'Error',
+            message: error.response?.data?.message || 'Failed to update work order.',
+          });
     }
   };
 
