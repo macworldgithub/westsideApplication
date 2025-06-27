@@ -162,6 +162,10 @@ import LanguageSetting from "./src/Screens/LanguageSetting";
 import AccountSecurityScreen from "./src/Screens/AccountSecurity";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import UpdatePasswordScreen from './src/Screens/UpdatePasswordScreen';
+import ChatRoomsScreen from "./src/Screens/ChatRoomsScreen";
+import Chat from "./src/Screens/Chat";
+
+
 const Stack = createStackNavigator();
 const RootStack = createStackNavigator();
 
@@ -267,6 +271,8 @@ export default function App() {
                 name="LanguageSetting"
                 component={LanguageSetting}
               />
+              <Stack.Screen name="ChatRooms" component={ChatRoomsScreen} />
+              <Stack.Screen name="Chat" component={Chat} />
             </>
           )}
         </Stack.Navigator>
