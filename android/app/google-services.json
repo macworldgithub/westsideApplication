@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "320313798668",
+    "project_id": "westside-c6dbf",
+    "storage_bucket": "westside-c6dbf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320313798668:android:fca23fb8838a5d0dedbe29",
+        "android_client_info": {
+          "package_name": "com.westsideapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAowYb2tW3vSmmx9_RG83UlIi1QAAhjMVY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
