@@ -23,10 +23,10 @@ export default function ChatRoomsScreen() {
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
 
+  // Fetch user details and initialize WebSocket
   useEffect(() => {
     const initialize = async () => {
       try {
-        console.log('asfsa')
         const token = await AsyncStorage.getItem('jwt_token');
         if (!token) {
           showToast({
@@ -41,19 +41,30 @@ export default function ChatRoomsScreen() {
         if (!decoded._id) throw new Error('Invalid token');
         setUserId(decoded._id);
 
+        // Initialize WebSocket
         const newSocket = io(API_BASE_URL.replace('/api', ''), {
           auth: { token },
         });
         setSocket(newSocket);
+
+        // Fetch chat rooms
         const response = await axios.get(
-          `${API_BASE_URL}/chat/chat-rooms/${decoded._id}`
+          `${API_BASE_URL}/chat/chat-rooms/${decoded._id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
+        console.log('Chat rooms response:', JSON.stringify(response.data, null, 2));
         const sortedRooms = response.data.sort((a, b) =>
           b.lastMessage?.createdAt
             ? new Date(b.lastMessage.createdAt) - new Date(a.lastMessage?.createdAt || a.createdAt)
             : new Date(b.createdAt) - new Date(a.createdAt)
         );
         setChatRooms(sortedRooms);
+
+        // Join all user chat rooms
+        sortedRooms.forEach((room) => {
+          newSocket.emit('join_chat', room._id);
+          console.log('Joined room:', room._id);
+        });
       } catch (error) {
         console.error('Error fetching chat rooms:', error);
         showToast({
@@ -68,14 +79,23 @@ export default function ChatRoomsScreen() {
     initialize();
 
     return () => {
-      if (socket) socket.disconnect();
+      if (socket) {
+        socket.disconnect();
+        console.log('WebSocket disconnected');
+      }
     };
   }, [navigation]);
 
+  // Listen for new messages
   useEffect(() => {
     if (!socket || !userId) return;
 
+    socket.on('connect', () => {
+      console.log('WebSocket connected');
+    });
+
     socket.on('new_message', (message) => {
+      console.log('Received new_message:', JSON.stringify(message, null, 2));
       if (!message || !message.chatRoomId) {
         console.error('Invalid message received:', message);
         return;
@@ -86,18 +106,25 @@ export default function ChatRoomsScreen() {
           (room) => room._id === message.chatRoomId
         );
         if (roomIndex !== -1) {
+          console.log('Updating room:', message.chatRoomId);
           updatedRooms[roomIndex] = {
             ...updatedRooms[roomIndex],
-            lastMessage: message,
+            lastMessage: {
+              ...message,
+              createdAt: new Date(message.createdAt), // Ensure date is parsed
+            },
           };
           const [room] = updatedRooms.splice(roomIndex, 1);
           updatedRooms.unshift(room);
+        } else {
+          console.warn('Room not found for message:', message.chatRoomId);
         }
         return updatedRooms;
       });
     });
 
     socket.on('error', (error) => {
+      console.error('WebSocket error:', error);
       showToast({
         type: 'error',
         title: 'Error',
@@ -115,6 +142,7 @@ export default function ChatRoomsScreen() {
     });
 
     return () => {
+      socket.off('connect');
       socket.off('new_message');
       socket.off('error');
       socket.off('connect_error');
@@ -124,12 +152,24 @@ export default function ChatRoomsScreen() {
   const renderChatRoom = ({ item: room }) => (
     <TouchableOpacity
       className="bg-[#2f2f2f] p-4 rounded-xl mb-2 flex-row items-center"
-      onPress={() =>
-        navigation.navigate('Chat', {
-          chatRoomId: room._id,
-          roomName: room.name || 'Chat Room',
-        })
-      }
+      activeOpacity={0.7}
+      style={{ zIndex: 1 }}
+      onPress={() => {
+        console.log('Clicked chat room:', { chatRoomId: room._id, roomName: room.name });
+        try {
+          navigation.getParent().navigate('Chat', {
+            chatRoomId: room._id,
+            roomName: room.name || 'Chat Room',
+          });
+        } catch (error) {
+          console.error('Navigation error:', error);
+          showToast({
+            type: 'error',
+            title: 'Navigation Error',
+            message: 'Failed to open chat.',
+          });
+        }
+      }}
     >
       <View className="w-12 h-12 rounded-full bg-gray-500 justify-center items-center mr-4">
         <FontAwesome name="comments" size={24} color="white" />

@@ -216,7 +216,6 @@ export default function Login({ onLogin }) {
           `${API_BASE_URL}/chat/chat-rooms/${userId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        console.log("data",chatRoomsResponse.data)
         const chatRooms = chatRoomsResponse.data;
         chatRooms.forEach((room) => {
           socket.emit('join_chat', room._id);
