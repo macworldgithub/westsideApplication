@@ -138,7 +138,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { enableScreens } from "react-native-screens";
-import Toast from 'react-native-toast-message'; 
+import Toast from "react-native-toast-message";
 import { toastConfig } from "./src/utils/toastconfig";
 
 import Login from "./src/Screens/Login";
@@ -161,10 +161,17 @@ import GeneralSettingsScreen from "./src/Screens/GeneralSetting";
 import LanguageSetting from "./src/Screens/LanguageSetting";
 import AccountSecurityScreen from "./src/Screens/AccountSecurity";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import UpdatePasswordScreen from './src/Screens/UpdatePasswordScreen';
+import UpdatePasswordScreen from "./src/Screens/UpdatePasswordScreen";
 import ChatRoomsScreen from "./src/Screens/ChatRoomsScreen";
 import Chat from "./src/Screens/Chat";
-
+import { PermissionsAndroid, Platform } from "react-native";
+import { getApp } from "@react-native-firebase/app";
+import {
+  getMessaging,
+  getToken,
+  requestPermission,
+  onTokenRefresh,
+} from "@react-native-firebase/messaging";
 
 const Stack = createStackNavigator();
 const RootStack = createStackNavigator();
@@ -176,7 +183,6 @@ export default function App() {
   const splashOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Load token from AsyncStorage
     const loadToken = async () => {
       try {
         const token = await AsyncStorage.getItem("jwt_token");
@@ -185,22 +191,90 @@ export default function App() {
         console.error("Error loading token:", error);
       }
     };
-    loadToken();
 
-    // Start splash fade-out after delay
+    const askPermissionAndGetFCM = async () => {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        await getFcmToken();
+      }
+    };
+
+    loadToken();
+    askPermissionAndGetFCM();
+
     const timer = setTimeout(() => {
       Animated.timing(splashOpacity, {
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
       }).start(() => {
-        // Delay state update to avoid useInsertionEffect issues
         setTimeout(() => setSplashVisible(false), 0);
       });
-    }, 2000); // Splash duration
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const app = getApp();
+    const messaging = getMessaging(app);
+
+    const unsubscribe = onTokenRefresh(messaging, (token) => {
+      console.log("🔁 Refreshed FCM Token:", token);
+      // Send to your backend if needed
+    });
+
+    return unsubscribe;
+  }, []);
+
+  async function requestNotificationPermission() {
+    if (Platform.OS === "android") {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          {
+            title: "Notification Permission",
+            message: "This app needs permission to send you notifications.",
+            buttonPositive: "Allow",
+            buttonNegative: "Deny",
+          }
+        );
+
+        console.log("📲 Permission granted:", granted);
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn("⚠️ Permission error:", err);
+        return false;
+      }
+    } else {
+      try {
+        const app = getApp();
+        const messaging = getMessaging(app);
+        const status = await requestPermission(messaging);
+        const granted =
+          status === messaging.AuthorizationStatus.AUTHORIZED ||
+          status === messaging.AuthorizationStatus.PROVISIONAL;
+        console.log("📲 iOS permission granted:", granted);
+        return granted;
+      } catch (err) {
+        console.warn("⚠️ iOS permission error:", err);
+        return false;
+      }
+    }
+  }
+
+  async function getFcmToken() {
+    try {
+      const app = getApp();
+      const messaging = getMessaging(app);
+      const token = await getToken(messaging);
+      console.log("🔥 FCM Token:", token);
+
+      // TODO: Send token to your backend to save
+    } catch (error) {
+      console.log("❌ Error getting FCM token:", error);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -237,7 +311,10 @@ export default function App() {
               <Stack.Screen name="NewWorkOrder" component={NewWorkOrder} />
               <Stack.Screen name="ReportScreen" component={ReportScreen} />
               <Stack.Screen name="NewService" component={NewService} />
-              <Stack.Screen name="EditServiceScreen" component={EditServiceScreen} />
+              <Stack.Screen
+                name="EditServiceScreen"
+                component={EditServiceScreen}
+              />
               <Stack.Screen name="EditWorkOrder" component={EditWorkOrder} />
               {/* <Stack.Screen name="CarOrderDetails" component={CarOrderDetails}/> */}
               <Stack.Screen
@@ -249,19 +326,17 @@ export default function App() {
                 component={NewCarRegistrtaiom}
               />
               <Stack.Screen name="Profile">
-                {(props) => (
-                  <Profile
-                    {...props}
-                    onLogout={setUserToken}
-                  />
-                )}
+                {(props) => <Profile {...props} onLogout={setUserToken} />}
               </Stack.Screen>
               <Stack.Screen name="EditProfile" component={EditProfile} />
               <Stack.Screen
                 name="AccountSecurity"
                 component={AccountSecurityScreen}
               />
-              <Stack.Screen name="UpdatePassword" component={UpdatePasswordScreen} />
+              <Stack.Screen
+                name="UpdatePassword"
+                component={UpdatePasswordScreen}
+              />
 
               <Stack.Screen
                 name="GeneralSetting"
@@ -276,8 +351,7 @@ export default function App() {
             </>
           )}
         </Stack.Navigator>
-      <Toast config={toastConfig} />
-
+        <Toast config={toastConfig} />
       </NavigationContainer>
 
       {/* Always render Splash screen OVER EVERYTHING until it fades out */}
