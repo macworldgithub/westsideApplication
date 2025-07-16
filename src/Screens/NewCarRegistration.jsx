@@ -155,11 +155,13 @@ const NewCarRegistration = () => {
       );
 
       showToast({
-      type: 'success',
-      title: 'Success',
-      message: 'Car registered successfully!',
-      onHide: () => navigation.goBack(), 
-      });
+          type: 'success',
+          title: 'Success',
+          message: 'Car registered successfully!',
+        });
+
+      navigation.goBack();
+
     } catch (error) {
       console.error("Error registering car:", error);
       const errorMessage =
