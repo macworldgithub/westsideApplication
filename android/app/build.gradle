@@ -154,11 +154,10 @@ dependencies {
     implementation("com.facebook.react:react-android")
      // Firebase BoM
     implementation platform('com.google.firebase:firebase-bom:33.16.0')
-
+    
 
       // Add Firebase modules
     implementation 'com.google.firebase:firebase-analytics'
-
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
     def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";
