@@ -529,7 +529,7 @@
 
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState, useRef } from "react";
-import { StyleSheet, Text, View, Animated, Platform } from "react-native";
+import { StyleSheet, Text, View, Animated, Platform, AppState } from "react-native"; // Add AppState
 import "./global.css";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
@@ -580,7 +580,6 @@ const RootStack = createStackNavigator();
 export default function App() {
   const [userToken, setUserToken] = useState(null);
   const [isSplashVisible, setSplashVisible] = useState(true);
-
   const splashOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -614,12 +613,12 @@ export default function App() {
         importance: AndroidImportance.HIGH,
       });
 
-      // Handle foreground notifications
+      // Handle foreground notification events (e.g., press)
       notifee.onForegroundEvent(({ type, detail }) => {
         switch (type) {
-          case EventType.DELIVERED:
           case EventType.PRESS:
-            console.log('Notification received or pressed in foreground:', detail.notification);
+            console.log('Notification pressed in foreground:', detail.notification);
+            // Optionally handle navigation to Chat screen here
             break;
         }
       });
@@ -646,10 +645,10 @@ export default function App() {
     const app = getApp();
     const messaging = getMessaging(app);
 
-    // Handle FCM messages in foreground
+    // Handle FCM messages in foreground (log only, no notification display)
     const unsubscribeMessage = messaging.onMessage(async (remoteMessage) => {
-      console.log('Foreground message received:', remoteMessage);
-      await displayNotification(remoteMessage);
+      console.log('Foreground message received, skipping notification:', remoteMessage);
+      // Do not call displayNotification here to avoid showing notifications in foreground
     });
 
     const unsubscribeTokenRefresh = onTokenRefresh(messaging, async (token) => {
@@ -662,28 +661,6 @@ export default function App() {
       unsubscribeTokenRefresh();
     };
   }, []);
-
-  async function displayNotification(remoteMessage) {
-    try {
-      await notifee.displayNotification({
-        title: remoteMessage.notification?.title || 'Notification',
-        body: remoteMessage.notification?.body || 'You have a new notification',
-        android: {
-          channelId: 'default',
-          importance: AndroidImportance.HIGH,
-          pressAction: {
-            id: 'default',
-          },
-        },
-        ios: {
-          sound: 'default',
-        },
-      });
-      console.log('Notification displayed via Notifee');
-    } catch (error) {
-      console.error('Error displaying Notifee notification:', error);
-    }
-  }
 
   async function requestNotificationPermission() {
     if (Platform.OS === "android") {

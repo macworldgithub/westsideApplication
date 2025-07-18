@@ -1,3 +1,4 @@
+
 // import React, { useState } from 'react';
 // import {
 //   View,
@@ -9,6 +10,8 @@
 // import { useNavigation } from '@react-navigation/native';
 // import axios from 'axios';
 // import AsyncStorage from '@react-native-async-storage/async-storage';
+// import { jwtDecode } from 'jwt-decode';
+// import io from 'socket.io-client';
 // import { API_BASE_URL } from '../utils/config';
 // import showToast from '../utils/Toast';
 
@@ -20,7 +23,6 @@
 //   const navigation = useNavigation();
 
 //   const handleSignIn = async () => {
-//     // Validate inputs
 //     if (!email.trim() || !password.trim()) {
 //       showToast({
 //         type: 'error',
@@ -30,7 +32,6 @@
 //       return;
 //     }
 
-//     // Basic email format validation
 //     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 //     if (!emailRegex.test(email)) {
 //       showToast({
@@ -42,33 +43,50 @@
 //     }
 
 //     try {
-//       // Make login request to backend using API_BASE_URL
 //       const response = await axios.post(`${API_BASE_URL}/auth/login`, {
 //         email,
 //         password,
 //       });
-//       console.log(response);
-//       // Extract token and name from response
-//       console.log(response.data);      
+      
 //       const { token, name } = response.data.credentials;
 
-//       // Store token and name in AsyncStorage
 //       await AsyncStorage.setItem('jwt_token', token);
 //       await AsyncStorage.setItem('user_name', name);
 
-//       // Call onLogin callback with token
+//       const decoded = jwtDecode(token);
+//       const userId = decoded._id;
+//       const socket = io(API_BASE_URL.replace('/api', ''), {
+//         auth: { token },
+//       });
+
+//       try {
+//         const chatRoomsResponse = await axios.get(
+//           `${API_BASE_URL}/chat/chat-rooms/${userId}`,
+//           { headers: { Authorization: `Bearer ${token}` } }
+//         );
+//         const chatRooms = chatRoomsResponse.data;
+//         chatRooms.forEach((room) => {
+//           socket.emit('join_chat', room._id);
+//         });
+//       } catch (error) {
+//         console.error('Error joining chat rooms:', error);
+//         showToast({
+//           type: 'error',
+//           title: 'Error',
+//           message: 'Failed to join chat rooms.',
+//         });
+//       }
+
 //       if (onLogin) {
 //         onLogin(token);
 //       }
 
-//       // Show success message
-//         showToast({
+//       showToast({
 //         type: 'success',
 //         title: 'Success',
 //         message: 'Logged in successfully!',
 //       });    
 //     } catch (error) {
-//       // Handle errors
 //       const errorMessage =
 //         error.response?.data?.message || 'Invalid credentials. Please try again.';
 //       showToast({
@@ -87,7 +105,6 @@
 //     <View className="flex-1 bg-black justify-center px-6 -mt-32">
 //       <Text className="text-white text-4xl font-bold text-center mb-20">Sign In</Text>
 
-//       {/* Email input */}
 //       <View className="flex-row items-center bg-black border border-gray-600 rounded-md px-3 py-2 mb-4">
 //         <FontAwesome name="envelope" size={20} color="white" style={{ marginRight: 8 }} />
 //         <TextInput
@@ -101,7 +118,6 @@
 //         />
 //       </View>
 
-//       {/* Password input */}
 //       <View className="flex-row items-center bg-black border border-gray-600 rounded-md px-3 py-2 mb-4">
 //         <FontAwesome name="lock" size={20} color="white" style={{ marginRight: 8 }} />
 //         <TextInput
@@ -121,7 +137,6 @@
 //         </TouchableOpacity>
 //       </View>
 
-//       {/* Remember me + Forgot Password */}
 //       <View className="flex-row justify-between items-center mb-6">
 //         <TouchableOpacity
 //           className="flex-row items-center"
@@ -140,7 +155,6 @@
 //         </TouchableOpacity>
 //       </View>
 
-//       {/* Sign In button */}
 //       <TouchableOpacity
 //         className="bg-[#666666] py-3 rounded-md"
 //         onPress={handleSignIn}
@@ -164,6 +178,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { jwtDecode } from 'jwt-decode';
 import io from 'socket.io-client';
+import { getApp } from '@react-native-firebase/app';
+import { getMessaging, getToken, deleteToken } from '@react-native-firebase/messaging';
 import { API_BASE_URL } from '../utils/config';
 import showToast from '../utils/Toast';
 
@@ -173,6 +189,54 @@ export default function Login({ onLogin }) {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigation = useNavigation();
+
+  const sendFcmTokenToBackend = async (fcmToken, jwtToken) => {
+    try {
+      await axios.post(
+        `${API_BASE_URL}/notifications/register-token`,
+        { fcmToken },
+        {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
+      );
+      console.log('FCM token sent to backend successfully');
+    } catch (error) {
+      console.error('Error sending FCM token to backend:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to register FCM token.',
+      });
+    }
+  };
+
+  const handleFcmToken = async (jwtToken) => {
+    try {
+      const app = getApp();
+      const messaging = getMessaging(app);
+
+      // Delete the existing token
+      const currentToken = await getToken(messaging);
+      if (currentToken) {
+        await deleteToken(messaging);
+        console.log('🗑️ Old FCM token deleted');
+      }
+
+      // Get new token
+      const newToken = await getToken(messaging, true); // `true` forces refresh
+      console.log('🔥 New FCM Token:', newToken);
+      await sendFcmTokenToBackend(newToken, jwtToken);
+    } catch (error) {
+      console.error('❌ Error handling FCM token:', error);
+      showToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to handle FCM token.',
+      });
+    }
+  };
 
   const handleSignIn = async () => {
     if (!email.trim() || !password.trim()) {
@@ -204,6 +268,9 @@ export default function Login({ onLogin }) {
 
       await AsyncStorage.setItem('jwt_token', token);
       await AsyncStorage.setItem('user_name', name);
+
+      // Handle FCM token deletion and generation
+      await handleFcmToken(token);
 
       const decoded = jwtDecode(token);
       const userId = decoded._id;
