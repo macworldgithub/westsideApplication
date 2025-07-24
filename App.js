@@ -355,7 +355,7 @@ export default function App() {
     };
 
     loadToken();
-    askPermissionAndGetFCM();
+    // askPermissionAndGetFCM();
     setupNotifee();
 
     const timer = setTimeout(() => {

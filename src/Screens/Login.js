@@ -166,6 +166,10 @@ import { jwtDecode } from 'jwt-decode';
 import io from 'socket.io-client';
 import { API_BASE_URL } from '../utils/config';
 import showToast from '../utils/Toast';
+import { getMessaging, getToken, deleteToken } from '@react-native-firebase/messaging';
+import { getApp } from '@react-native-firebase/app';
+
+
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -204,6 +208,9 @@ export default function Login({ onLogin }) {
 
       await AsyncStorage.setItem('jwt_token', token);
       await AsyncStorage.setItem('user_name', name);
+    console.log("✅ JWT Token after login:", token); // 👈 THIS WILL NOW SHOW
+
+await sendFcmTokenToBackend(token);
 
       const decoded = jwtDecode(token);
       const userId = decoded._id;
@@ -252,6 +259,39 @@ export default function Login({ onLogin }) {
   const handleForgotPassword = () => {
     navigation.navigate('ForgotPassword');
   };
+
+
+  const sendFcmTokenToBackend = async (jwtToken) => {
+  try {
+    const app = getApp();
+    const messaging = getMessaging(app);
+
+    // Optional: delete old token
+    const oldToken = await getToken(messaging);
+    if (oldToken) {
+      await deleteToken(messaging);
+      console.log("🗑️ Old FCM token deleted (Login)");
+    }
+
+    // Get new token
+    const fcmToken = await getToken(messaging, true);
+    console.log("🔥 FCM Token after login:", fcmToken);
+
+    await axios.post(
+      `${API_BASE_URL}/notifications/register-token`,
+      { fcmToken },
+      {
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+        },
+      }
+    );
+    console.log("✅ FCM token sent after login");
+  } catch (error) {
+    console.error("❌ Error sending FCM token after login:", error);
+  }
+};
+
 
   return (
     <View className="flex-1 bg-black justify-center px-6 -mt-32">
