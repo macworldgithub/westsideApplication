@@ -421,7 +421,7 @@ export default function App() {
         },
         },
       });
-      console.log('Notification displayed via Notifee');
+      console.log('Notifications displayed via Notifee');
     } catch (error) {
       console.error('Error displaying Notifee notification:', error);
     }
