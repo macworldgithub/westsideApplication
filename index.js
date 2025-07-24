@@ -44,6 +44,11 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
     },
     ios: {
       sound: 'default',
+      foregroundPresentationOptions: {
+          alert: true,
+          badge: true,
+          sound: true,
+        },
     },
   });
   console.log('Background notification displayed via Notifee');

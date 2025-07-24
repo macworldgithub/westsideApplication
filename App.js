@@ -414,6 +414,11 @@ export default function App() {
         },
         ios: {
           sound: 'default',
+          foregroundPresentationOptions: {
+          alert: true,
+          badge: true,
+          sound: true,
+        },
         },
       });
       console.log('Notification displayed via Notifee');
