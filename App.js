@@ -570,7 +570,10 @@ import {
   requestPermission,
   onTokenRefresh,
   deleteToken,
+  AuthorizationStatus
 } from "@react-native-firebase/messaging";
+
+
 import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import { API_BASE_URL } from "./src/utils/config";
 
@@ -687,9 +690,14 @@ export default function App() {
         const messaging = getMessaging(app);
         const status = await requestPermission(messaging);
         const granted =
-          status === messaging.AuthorizationStatus.AUTHORIZED ||
-          status === messaging.AuthorizationStatus.PROVISIONAL;
+  status === AuthorizationStatus.AUTHORIZED ||
+  status === AuthorizationStatus.PROVISIONAL;
         console.log("📲 iOS permission granted:", granted);
+        if (granted) {
+        await getFcmToken(); // ✅ add this
+      } else {
+        Alert.alert("Notification permission denied"); // optional
+      }
         return granted;
       } catch (err) {
         console.warn("⚠️ iOS permission error:", err);
